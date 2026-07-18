@@ -22,6 +22,8 @@ from api_client import (
     get_upcoming_fixtures,
     get_current_season,
     get_standings,
+    get_top_scorers,
+    get_top_assists,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -125,6 +127,21 @@ def format_standings(standings: list, league_name: str) -> str:
             f"<code>{rank:<4}{name:<22}{played:<4}{win:<4}{draw:<4}{lose:<4}{points}</code>"
         )
     lines.append("\n<i>O-o'yin, G-g'alaba, D-durang, M-mag'lubiyat</i>")
+    return "\n".join(lines)
+
+
+def format_top_players(players: list, league_name: str, stat_type: str) -> str:
+    label = "⚽ Top buombardirlar" if stat_type == "scorers" else "🎯 Top assistentlar"
+    lines = [f"<b>{league_name}</b>\n{label}\n"]
+    for i, item in enumerate(players[:10], start=1):
+        name = item["player"]["name"]
+        stats = item["statistics"][0]
+        team = stats["team"]["name"]
+        if stat_type == "scorers":
+            count = stats["goals"]["total"] or 0
+        else:
+            count = stats["goals"]["assists"] or 0
+        lines.append(f"{i}. {name} ({team}) — {count}")
     return "\n".join(lines)
 
 
@@ -249,13 +266,57 @@ async def show_standings_table(callback: CallbackQuery):
     await callback.message.answer(text)
 
 
-@dp.callback_query(F.data.in_({"top_scorers", "top_assists", "favorite_team"}))
+@dp.callback_query(F.data == "top_scorers")
+async def show_top_scorers_menu(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
+        "Qaysi liga bo'yicha top buombardirlarni ko'rmoqchisiz?",
+        reply_markup=league_selection_keyboard("topscorers", include_all=False),
+    )
+
+
+@dp.callback_query(F.data.startswith("topscorers:"))
+async def show_top_scorers(callback: CallbackQuery):
+    await callback.answer("Yuklanmoqda...")
+    key = callback.data.split(":")[1]
+    league = LEAGUES[key]
+    season = await get_current_season(league["id"])
+    players = await get_top_scorers(league["id"], season)
+    if not players:
+        await callback.message.answer(f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi.")
+        return
+    text = format_top_players(players, league["name"], "scorers")
+    await callback.message.answer(text)
+
+
+@dp.callback_query(F.data == "top_assists")
+async def show_top_assists_menu(callback: CallbackQuery):
+    await callback.answer()
+    await callback.message.answer(
+        "Qaysi liga bo'yicha top assistentlarni ko'rmoqchisiz?",
+        reply_markup=league_selection_keyboard("topassists", include_all=False),
+    )
+
+
+@dp.callback_query(F.data.startswith("topassists:"))
+async def show_top_assists(callback: CallbackQuery):
+    await callback.answer("Yuklanmoqda...")
+    key = callback.data.split(":")[1]
+    league = LEAGUES[key]
+    season = await get_current_season(league["id"])
+    players = await get_top_assists(league["id"], season)
+    if not players:
+        await callback.message.answer(f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi.")
+        return
+    text = format_top_players(players, league["name"], "assists")
+    await callback.message.answer(text)
+
+
+@dp.callback_query(F.data == "favorite_team")
 async def handle_placeholder(callback: CallbackQuery):
     await callback.answer()
     await callback.message.answer("🔧 Bu funksiya keyingi bosqichda ulanadi.")
 
-
-# ==================== "UYG'OQ TURISH" UCHUN MINI SERVER ====================
 
 async def handle_ping(request):
     return web.Response(text="MatchDay Live bot ishlab turibdi ✅")
