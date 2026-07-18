@@ -8,12 +8,10 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
-from aiogram.types import (
-    Message,
-    CallbackQuery,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-)
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 
 from config import BOT_TOKEN, LEAGUES, ALL_LEAGUE_IDS
 from api_client import (
@@ -29,44 +27,51 @@ from api_client import (
 logging.basicConfig(level=logging.INFO)
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
+
+LEAGUE_NAME_TO_KEY = {league["name"]: key for key, league in LEAGUES.items()}
 
 
-def main_menu() -> InlineKeyboardMarkup:
-    keyboard = [
-        [InlineKeyboardButton(text="🔴 Live natijalar", callback_data="live_scores")],
-        [InlineKeyboardButton(text="📅 O'yinlar jadvali", callback_data="fixtures")],
-        [InlineKeyboardButton(text="🏆 Turnir jadvali", callback_data="standings")],
-        [InlineKeyboardButton(text="⚽ Top buombardirlar", callback_data="top_scorers")],
-        [InlineKeyboardButton(text="🎯 Top assistentlar", callback_data="top_assists")],
-        [InlineKeyboardButton(text="⭐ Sevimli jamoam", callback_data="favorite_team")],
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+class Nav(StatesGroup):
+    choosing_league = State()
+    choosing_fixtures_type = State()
 
 
-def league_selection_keyboard(prefix: str, include_all: bool = True) -> InlineKeyboardMarkup:
-    buttons = []
+def main_menu_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🔴 Live natijalar"), KeyboardButton(text="📅 O'yinlar jadvali")],
+            [KeyboardButton(text="🏆 Turnir jadvali"), KeyboardButton(text="⚽ Top buombardirlar")],
+            [KeyboardButton(text="🎯 Top assistentlar"), KeyboardButton(text="⭐ Sevimli jamoam")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def fixtures_type_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="📆 Bugungi o'yinlar"), KeyboardButton(text="🗓 Yaqin o'yinlar")],
+            [KeyboardButton(text="⬅️ Orqaga")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def league_kb(include_all: bool) -> ReplyKeyboardMarkup:
+    rows = []
     row = []
-    for key, league in LEAGUES.items():
-        row.append(InlineKeyboardButton(text=league["name"], callback_data=f"{prefix}:{key}"))
+    for league in LEAGUES.values():
+        row.append(KeyboardButton(text=league["name"]))
         if len(row) == 2:
-            buttons.append(row)
+            rows.append(row)
             row = []
     if row:
-        buttons.append(row)
+        rows.append(row)
     if include_all:
-        buttons.append([InlineKeyboardButton(text="🌍 Barchasi", callback_data=f"{prefix}:all")])
-    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_main")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def fixtures_type_menu_keyboard() -> InlineKeyboardMarkup:
-    keyboard = [
-        [InlineKeyboardButton(text="📆 Bugungi o'yinlar", callback_data="today_menu")],
-        [InlineKeyboardButton(text="🗓 Yaqin o'yinlar (taqvim)", callback_data="upcoming_menu")],
-        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_main")],
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+        rows.append([KeyboardButton(text="🌍 Barchasi")])
+    rows.append([KeyboardButton(text="⬅️ Orqaga")])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 
 def format_fixture(fixture: dict) -> str:
@@ -146,176 +151,156 @@ def format_top_players(players: list, league_name: str, stat_type: str) -> str:
 
 
 @dp.message(Command("start"))
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, state: FSMContext):
+    await state.clear()
     text = (
         f"⚽ Salom, <b>{message.from_user.first_name}</b>!\n\n"
         "Men <b>MatchDay Live</b> — futbol muxlislari uchun birinchi raqamli yordamchi botman.\n"
         "Top 5 Yevropa ligasi va O'zbekiston Superligasi bo'yicha "
         "live natijalar, jadval va statistikani shu yerdan olasiz.\n\n"
-        "Quyidagi menyudan birini tanlang 👇"
+        "Pastdagi menyudan birini tanlang 👇"
     )
-    await message.answer(text, reply_markup=main_menu())
+    await message.answer(text, reply_markup=main_menu_kb())
 
 
-@dp.callback_query(F.data == "back_main")
-async def back_to_main(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer("Asosiy menyu:", reply_markup=main_menu())
+@dp.message(F.text == "⬅️ Orqaga")
+async def go_back(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Asosiy menyu:", reply_markup=main_menu_kb())
 
 
-@dp.callback_query(F.data == "live_scores")
-async def show_live_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liga bo'yicha live natijalarni ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("live"),
-    )
+@dp.message(F.text == "🔴 Live natijalar")
+async def menu_live(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="live", include_all=True)
+    await message.answer("Qaysi liga bo'yicha live natijalarni ko'rmoqchisiz?", reply_markup=league_kb(True))
 
 
-@dp.callback_query(F.data.startswith("live:"))
-async def show_live_results(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    all_fixtures = await get_live_fixtures()
-    fixtures, title = filter_by_league(all_fixtures, key)
-    if not fixtures:
-        await callback.message.answer(f"<b>{title}</b>\n\nHozir jonli o'yin yo'q ⚽😴")
+@dp.message(F.text == "📅 O'yinlar jadvali")
+async def menu_fixtures(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_fixtures_type)
+    await message.answer("Qaysi turdagi o'yinlar jadvalini ko'rmoqchisiz?", reply_markup=fixtures_type_kb())
+
+
+@dp.message(Nav.choosing_fixtures_type, F.text == "📆 Bugungi o'yinlar")
+async def menu_today(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="today", include_all=True)
+    await message.answer("Qaysi liga bo'yicha bugungi o'yinlarni ko'rmoqchisiz?", reply_markup=league_kb(True))
+
+
+@dp.message(Nav.choosing_fixtures_type, F.text == "🗓 Yaqin o'yinlar")
+async def menu_upcoming(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="upcoming", include_all=False)
+    await message.answer("Qaysi liganing yaqin o'yinlarini ko'rmoqchisiz?", reply_markup=league_kb(False))
+
+
+@dp.message(F.text == "🏆 Turnir jadvali")
+async def menu_standings(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="standings", include_all=False)
+    await message.answer("Qaysi liga jadvalini ko'rmoqchisiz?", reply_markup=league_kb(False))
+
+
+@dp.message(F.text == "⚽ Top buombardirlar")
+async def menu_topscorers(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="topscorers", include_all=False)
+    await message.answer("Qaysi liga bo'yicha top buombardirlarni ko'rmoqchisiz?", reply_markup=league_kb(False))
+
+
+@dp.message(F.text == "🎯 Top assistentlar")
+async def menu_topassists(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="topassists", include_all=False)
+    await message.answer("Qaysi liga bo'yicha top assistentlarni ko'rmoqchisiz?", reply_markup=league_kb(False))
+
+
+@dp.message(F.text == "⭐ Sevimli jamoam")
+async def menu_favorite(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("🔧 Bu funksiya keyingi bosqichda ulanadi.", reply_markup=main_menu_kb())
+
+
+@dp.message(Nav.choosing_league)
+async def handle_league_choice(message: Message, state: FSMContext):
+    data = await state.get_data()
+    action = data.get("action")
+    include_all = data.get("include_all", False)
+    text = message.text
+
+    if text == "🌍 Barchasi" and include_all:
+        key = "all"
+    elif text in LEAGUE_NAME_TO_KEY:
+        key = LEAGUE_NAME_TO_KEY[text]
+    else:
+        await message.answer("Iltimos, pastdagi tugmalardan birini tanlang 👇")
         return
-    lines = [format_fixture(f) for f in fixtures]
-    text = f"<b>{title} — Live natijalar</b>\n\n" + "\n".join(lines)
-    await callback.message.answer(text)
 
+    await message.answer("Yuklanmoqda... ⏳")
 
-@dp.callback_query(F.data == "fixtures")
-async def show_fixtures_type_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi turdagi o'yinlar jadvalini ko'rmoqchisiz?",
-        reply_markup=fixtures_type_menu_keyboard(),
-    )
+    if action == "live":
+        all_fixtures = await get_live_fixtures()
+        fixtures, title = filter_by_league(all_fixtures, key)
+        if not fixtures:
+            result = f"<b>{title}</b>\n\nHozir jonli o'yin yo'q ⚽😴"
+        else:
+            lines = [format_fixture(f) for f in fixtures]
+            result = f"<b>{title} — Live natijalar</b>\n\n" + "\n".join(lines)
 
+    elif action == "today":
+        today = datetime.now().strftime("%Y-%m-%d")
+        all_fixtures = await get_fixtures_by_date(today)
+        fixtures, title = filter_by_league(all_fixtures, key)
+        if not fixtures:
+            result = f"<b>{title}</b>\n\nBugun o'yin yo'q 📅"
+        else:
+            lines = [format_fixture(f) for f in fixtures]
+            result = f"<b>{title} — Bugungi o'yinlar</b>\n\n" + "\n".join(lines)
 
-@dp.callback_query(F.data == "today_menu")
-async def show_today_league_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liga bo'yicha bugungi o'yinlarni ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("today", include_all=True),
-    )
+    elif action == "upcoming":
+        league = LEAGUES[key]
+        season = await get_current_season(league["id"])
+        fixtures = await get_upcoming_fixtures(league["id"], season)
+        if not fixtures:
+            result = f"<b>{league['name']}</b>\n\nYaqin kunlarda o'yin topilmadi."
+        else:
+            lines = [format_upcoming_fixture(f) for f in fixtures]
+            result = f"<b>{league['name']} — Yaqin o'yinlar</b>\n\n" + "\n".join(lines)
 
+    elif action == "standings":
+        league = LEAGUES[key]
+        season = await get_current_season(league["id"])
+        standings = await get_standings(league["id"], season)
+        if not standings:
+            result = f"<b>{league['name']}</b>\n\nJadval hozircha topilmadi."
+        else:
+            result = format_standings(standings, league["name"])
 
-@dp.callback_query(F.data.startswith("today:"))
-async def show_today_fixtures(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    today = datetime.now().strftime("%Y-%m-%d")
-    all_fixtures = await get_fixtures_by_date(today)
-    fixtures, title = filter_by_league(all_fixtures, key)
-    if not fixtures:
-        await callback.message.answer(f"<b>{title}</b>\n\nBugun o'yin yo'q 📅")
-        return
-    lines = [format_fixture(f) for f in fixtures]
-    text = f"<b>{title} — Bugungi o'yinlar</b>\n\n" + "\n".join(lines)
-    await callback.message.answer(text)
+    elif action == "topscorers":
+        league = LEAGUES[key]
+        season = await get_current_season(league["id"])
+        players = await get_top_scorers(league["id"], season)
+        if not players:
+            result = f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi."
+        else:
+            result = format_top_players(players, league["name"], "scorers")
 
+    elif action == "topassists":
+        league = LEAGUES[key]
+        season = await get_current_season(league["id"])
+        players = await get_top_assists(league["id"], season)
+        if not players:
+            result = f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi."
+        else:
+            result = format_top_players(players, league["name"], "assists")
 
-@dp.callback_query(F.data == "upcoming_menu")
-async def show_upcoming_league_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liganing yaqin kunlardagi o'yinlarini ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("upcoming", include_all=False),
-    )
+    else:
+        result = "Xatolik yuz berdi."
 
-
-@dp.callback_query(F.data.startswith("upcoming:"))
-async def show_upcoming_fixtures_handler(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    league = LEAGUES[key]
-    season = await get_current_season(league["id"])
-    fixtures = await get_upcoming_fixtures(league["id"], season)
-    if not fixtures:
-        await callback.message.answer(f"<b>{league['name']}</b>\n\nYaqin kunlarda o'yin topilmadi.")
-        return
-    lines = [format_upcoming_fixture(f) for f in fixtures]
-    text = f"<b>{league['name']} — Yaqin o'yinlar</b>\n\n" + "\n".join(lines)
-    await callback.message.answer(text)
-
-
-@dp.callback_query(F.data == "standings")
-async def show_standings_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liga jadvalini ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("standings", include_all=False),
-    )
-
-
-@dp.callback_query(F.data.startswith("standings:"))
-async def show_standings_table(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    league = LEAGUES[key]
-    season = await get_current_season(league["id"])
-    standings = await get_standings(league["id"], season)
-    if not standings:
-        await callback.message.answer(f"<b>{league['name']}</b>\n\nJadval hozircha topilmadi.")
-        return
-    text = format_standings(standings, league["name"])
-    await callback.message.answer(text)
-
-
-@dp.callback_query(F.data == "top_scorers")
-async def show_top_scorers_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liga bo'yicha top buombardirlarni ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("topscorers", include_all=False),
-    )
-
-
-@dp.callback_query(F.data.startswith("topscorers:"))
-async def show_top_scorers(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    league = LEAGUES[key]
-    season = await get_current_season(league["id"])
-    players = await get_top_scorers(league["id"], season)
-    if not players:
-        await callback.message.answer(f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi.")
-        return
-    text = format_top_players(players, league["name"], "scorers")
-    await callback.message.answer(text)
-
-
-@dp.callback_query(F.data == "top_assists")
-async def show_top_assists_menu(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer(
-        "Qaysi liga bo'yicha top assistentlarni ko'rmoqchisiz?",
-        reply_markup=league_selection_keyboard("topassists", include_all=False),
-    )
-
-
-@dp.callback_query(F.data.startswith("topassists:"))
-async def show_top_assists(callback: CallbackQuery):
-    await callback.answer("Yuklanmoqda...")
-    key = callback.data.split(":")[1]
-    league = LEAGUES[key]
-    season = await get_current_season(league["id"])
-    players = await get_top_assists(league["id"], season)
-    if not players:
-        await callback.message.answer(f"<b>{league['name']}</b>\n\nMa'lumot hozircha topilmadi.")
-        return
-    text = format_top_players(players, league["name"], "assists")
-    await callback.message.answer(text)
-
-
-@dp.callback_query(F.data == "favorite_team")
-async def handle_placeholder(callback: CallbackQuery):
-    await callback.answer()
-    await callback.message.answer("🔧 Bu funksiya keyingi bosqichda ulanadi.")
+    await state.clear()
+    await message.answer(result, reply_markup=main_menu_kb())
 
 
 async def handle_ping(request):
