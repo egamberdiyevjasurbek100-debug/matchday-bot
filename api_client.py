@@ -49,7 +49,9 @@ async def get_standings(league_id: int, season: int):
         except (KeyError, IndexError):
             return []
     return []
-    async def get_top_scorers(league_id: int, season: int):
+
+
+async def get_top_scorers(league_id: int, season: int):
     return await _get("players/topscorers", {"league": league_id, "season": season})
 
 
