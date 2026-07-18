@@ -11,7 +11,7 @@ from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, BotCommand
 
 from config import BOT_TOKEN, LEAGUES, ALL_LEAGUE_IDS
 from api_client import (
@@ -22,6 +22,15 @@ from api_client import (
     get_standings,
     get_top_scorers,
     get_top_assists,
+    get_teams_by_league,
+    get_upcoming_fixtures_for_team,
+)
+from supabase_client import (
+    get_favorites,
+    get_all_favorites,
+    add_favorite,
+    remove_favorite,
+    mark_notified,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -31,10 +40,16 @@ dp = Dispatcher(storage=MemoryStorage())
 
 LEAGUE_NAME_TO_KEY = {league["name"]: key for key, league in LEAGUES.items()}
 
+CHECK_INTERVAL_SECONDS = 3 * 60 * 60
+NOTIFY_WINDOW_HOURS = 24
+
 
 class Nav(StatesGroup):
     choosing_league = State()
     choosing_fixtures_type = State()
+    choosing_team = State()
+    removing_team = State()
+    favorites_menu = State()
 
 
 def main_menu_kb() -> ReplyKeyboardMarkup:
@@ -70,6 +85,31 @@ def league_kb(include_all: bool) -> ReplyKeyboardMarkup:
         rows.append(row)
     if include_all:
         rows.append([KeyboardButton(text="🌍 Barchasi")])
+    rows.append([KeyboardButton(text="⬅️ Orqaga")])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
+def favorites_menu_kb() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="➕ Jamoa qo'shish")],
+            [KeyboardButton(text="➖ Jamoa olib tashlash")],
+            [KeyboardButton(text="⬅️ Orqaga")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def team_selection_kb(names: list) -> ReplyKeyboardMarkup:
+    rows = []
+    row = []
+    for name in names:
+        row.append(KeyboardButton(text=name))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
     rows.append([KeyboardButton(text="⬅️ Orqaga")])
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
@@ -220,7 +260,63 @@ async def menu_topassists(message: Message, state: FSMContext):
 @dp.message(F.text == "⭐ Sevimli jamoam")
 async def menu_favorite(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("🔧 Bu funksiya keyingi bosqichda ulanadi.", reply_markup=main_menu_kb())
+    favorites = await get_favorites(message.from_user.id)
+    if favorites:
+        lines = ["<b>Sizning sevimli jamoalaringiz:</b>\n"]
+        for fav in favorites:
+            lines.append(f"⭐ {fav['team_name']}")
+        text = "\n".join(lines)
+    else:
+        text = "Hali sevimli jamoa tanlamagansiz."
+    await state.set_state(Nav.favorites_menu)
+    await message.answer(text, reply_markup=favorites_menu_kb())
+
+
+@dp.message(Nav.favorites_menu, F.text == "➕ Jamoa qo'shish")
+async def add_favorite_start(message: Message, state: FSMContext):
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(action="pick_team_league", include_all=False)
+    await message.answer("Qaysi liga jamoasini qo'shmoqchisiz?", reply_markup=league_kb(False))
+
+
+@dp.message(Nav.favorites_menu, F.text == "➖ Jamoa olib tashlash")
+async def remove_favorite_start(message: Message, state: FSMContext):
+    favorites = await get_favorites(message.from_user.id)
+    if not favorites:
+        await message.answer("Sizda sevimli jamoa yo'q.", reply_markup=favorites_menu_kb())
+        return
+    fav_map = {f["team_name"]: f["team_id"] for f in favorites}
+    await state.update_data(fav_map=fav_map)
+    await state.set_state(Nav.removing_team)
+    await message.answer("Qaysi jamoani olib tashlaysiz?", reply_markup=team_selection_kb(list(fav_map.keys())))
+
+
+@dp.message(Nav.removing_team)
+async def handle_team_removal(message: Message, state: FSMContext):
+    data = await state.get_data()
+    fav_map = data.get("fav_map", {})
+    text = message.text
+    if text not in fav_map:
+        await message.answer("Iltimos, pastdagi tugmalardan birini tanlang 👇")
+        return
+    team_id = fav_map[text]
+    await remove_favorite(message.from_user.id, team_id)
+    await state.clear()
+    await message.answer(f"🗑 {text} sevimli jamoalardan olib tashlandi.", reply_markup=main_menu_kb())
+
+
+@dp.message(Nav.choosing_team)
+async def handle_team_choice(message: Message, state: FSMContext):
+    data = await state.get_data()
+    team_map = data.get("team_map", {})
+    text = message.text
+    if text not in team_map:
+        await message.answer("Iltimos, pastdagi tugmalardan birini tanlang 👇")
+        return
+    team_id = team_map[text]
+    await add_favorite(message.from_user.id, team_id, text)
+    await state.clear()
+    await message.answer(f"⭐ {text} sevimli jamoalaringizga qo'shildi!", reply_markup=main_menu_kb())
 
 
 @dp.message(Nav.choosing_league)
@@ -236,6 +332,21 @@ async def handle_league_choice(message: Message, state: FSMContext):
         key = LEAGUE_NAME_TO_KEY[text]
     else:
         await message.answer("Iltimos, pastdagi tugmalardan birini tanlang 👇")
+        return
+
+    if action == "pick_team_league":
+        league = LEAGUES[key]
+        await message.answer("Yuklanmoqda... ⏳")
+        season = await get_current_season(league["id"])
+        teams = await get_teams_by_league(league["id"], season)
+        if not teams:
+            await state.set_state(Nav.favorites_menu)
+            await message.answer("Jamoalar topilmadi.", reply_markup=favorites_menu_kb())
+            return
+        team_map = {t["team"]["name"]: t["team"]["id"] for t in teams}
+        await state.update_data(team_map=team_map)
+        await state.set_state(Nav.choosing_team)
+        await message.answer(f"{league['name']} jamoalaridan birini tanlang:", reply_markup=team_selection_kb(list(team_map.keys())))
         return
 
     await message.answer("Yuklanmoqda... ⏳")
@@ -303,6 +414,59 @@ async def handle_league_choice(message: Message, state: FSMContext):
     await message.answer(result, reply_markup=main_menu_kb())
 
 
+async def check_favorite_notifications():
+    while True:
+        try:
+            favorites = await get_all_favorites()
+            teams_map = {}
+            for fav in favorites:
+                teams_map.setdefault(fav["team_id"], []).append(fav)
+
+            for team_id, rows in teams_map.items():
+                fixtures = await get_upcoming_fixtures_for_team(team_id, count=1)
+                if not fixtures:
+                    continue
+                fixture = fixtures[0]
+                fixture_id = str(fixture["fixture"]["id"])
+                fixture_time = datetime.fromisoformat(fixture["fixture"]["date"])
+                now = datetime.now(fixture_time.tzinfo)
+                hours_left = (fixture_time - now).total_seconds() / 3600
+
+                if 0 < hours_left <= NOTIFY_WINDOW_HOURS:
+                    home = fixture["teams"]["home"]["name"]
+                    away = fixture["teams"]["away"]["name"]
+                    time_str = fixture["fixture"]["date"][11:16]
+                    date_str = fixture["fixture"]["date"][5:10]
+
+                    for row in rows:
+                        notified = row.get("notified_fixtures") or ""
+                        notified_list = notified.split(",") if notified else []
+                        if fixture_id in notified_list:
+                            continue
+                        try:
+                            text = (
+                                f"⏰ <b>{row['team_name']}</b> o'yini yaqinlashmoqda!\n\n"
+                                f"🗓 {date_str} {time_str}\n"
+                                f"{home} — {away}"
+                            )
+                            await bot.send_message(row["user_id"], text)
+                            notified_list.append(fixture_id)
+                            await mark_notified(row["id"], ",".join(notified_list))
+                        except Exception as e:
+                            logging.error(f"Bildirishnoma yuborishda xato: {e}")
+        except Exception as e:
+            logging.error(f"Bildirishnoma tekshiruvida xato: {e}")
+
+        await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+
+
+async def set_bot_commands():
+    commands = [
+        BotCommand(command="start", description="🔄 Qayta boshlash"),
+    ]
+    await bot.set_my_commands(commands)
+
+
 async def handle_ping(request):
     return web.Response(text="MatchDay Live bot ishlab turibdi ✅")
 
@@ -319,7 +483,9 @@ async def start_web_server():
 
 async def main():
     print("MatchDay Live bot ishga tushdi...")
+    await set_bot_commands()
     await start_web_server()
+    asyncio.create_task(check_favorite_notifications())
     await dp.start_polling(bot)
 
 
