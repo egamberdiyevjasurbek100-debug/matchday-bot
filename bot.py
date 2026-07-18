@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
 from datetime import datetime
 
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -253,8 +255,25 @@ async def handle_placeholder(callback: CallbackQuery):
     await callback.message.answer("🔧 Bu funksiya keyingi bosqichda ulanadi.")
 
 
+# ==================== "UYG'OQ TURISH" UCHUN MINI SERVER ====================
+
+async def handle_ping(request):
+    return web.Response(text="MatchDay Live bot ishlab turibdi ✅")
+
+
+async def start_web_server():
+    app = web.Application()
+    app.router.add_get("/", handle_ping)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
+
 async def main():
     print("MatchDay Live bot ishga tushdi...")
+    await start_web_server()
     await dp.start_polling(bot)
 
 
