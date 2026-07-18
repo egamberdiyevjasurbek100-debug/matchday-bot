@@ -57,3 +57,11 @@ async def get_top_scorers(league_id: int, season: int):
 
 async def get_top_assists(league_id: int, season: int):
     return await _get("players/topassists", {"league": league_id, "season": season})
+
+
+async def get_teams_by_league(league_id: int, season: int):
+    return await _get("teams", {"league": league_id, "season": season})
+
+
+async def get_upcoming_fixtures_for_team(team_id: int, count: int = 1):
+    return await _get("fixtures", {"team": team_id, "next": count, "timezone": "Asia/Tashkent"})
