@@ -15,7 +15,11 @@ async def get_favorites(user_id: int):
     params = {"user_id": f"eq.{user_id}", "select": "*"}
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.get(REST_URL, params=params) as resp:
-            return await resp.json()
+            data = await resp.json()
+            logging.error(f"DEBUG get_favorites: status={resp.status} type={type(data)} data={data}")
+            if not isinstance(data, list):
+                return []
+            return [item for item in data if isinstance(item, dict)]
 
 
 async def get_all_favorites():
