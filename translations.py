@@ -108,6 +108,12 @@ TRANSLATIONS = {
         ),
         "status_halftime": "Tanaffus",
         "status_finished": "Yakunlandi",
+        "btn_highlights": "🎬 Highlights",
+        "highlights_league_prompt": (
+            "Qaysi liga bo'yicha highlights ko'rmoqchisiz?"
+        ),
+        "highlights_open": "▶️ Ochish",
+        "highlights_caption": "🎬 {league} — so'nggi highlights",
     },
     "ru": {
         "welcome": (
@@ -213,6 +219,12 @@ TRANSLATIONS = {
         ),
         "status_halftime": "Перерыв",
         "status_finished": "Матч завершён",
+        "btn_highlights": "🎬 Хайлайты",
+        "highlights_league_prompt": (
+            "По какой лиге показать хайлайты?"
+        ),
+        "highlights_open": "▶️ Открыть",
+        "highlights_caption": "🎬 {league} — последние хайлайты",
     },
     "en": {
         "welcome": (
@@ -316,6 +328,12 @@ TRANSLATIONS = {
         ),
         "status_halftime": "Half-time",
         "status_finished": "Finished",
+        "btn_highlights": "🎬 Highlights",
+        "highlights_league_prompt": (
+            "Which league's highlights would you like?"
+        ),
+        "highlights_open": "▶️ Open",
+        "highlights_caption": "🎬 {league} — latest highlights",
     },
 }
 
