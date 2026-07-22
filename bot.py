@@ -120,7 +120,6 @@ def language_kb() -> ReplyKeyboardMarkup:
 
 
 def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
-def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -141,7 +140,10 @@ def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
             ],
         ],
         resize_keyboard=True,
-    )def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
+    )
+
+
+def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [
