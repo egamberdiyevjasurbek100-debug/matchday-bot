@@ -647,10 +647,11 @@ async def handle_league_choice(message: Message, state: FSMContext):
             ]
         )
         await state.clear()
+        await message.answer(caption, reply_markup=kb)
         await message.answer(
-            caption, reply_markup=main_menu_kb(lang)
+            t(lang, "main_menu_label"),
+            reply_markup=main_menu_kb(lang),
         )
-        await message.answer(" ", reply_markup=kb)
         return
     else:
         result = "Error."
