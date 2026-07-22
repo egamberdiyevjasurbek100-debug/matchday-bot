@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import urllib.parse
 from datetime import datetime
 
 from aiohttp import web
@@ -11,7 +12,14 @@ from aiogram.filters import Command
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, BotCommand
+from aiogram.types import (
+    Message,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    BotCommand,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
 
 from config import BOT_TOKEN, LEAGUES, ALL_LEAGUE_IDS
 from api_client import (
@@ -47,7 +55,16 @@ dp = Dispatcher(storage=MemoryStorage())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
+OFFICIAL_HIGHLIGHT_CHANNELS = {
+    "uzbekistan": "https://www.youtube.com/@uzbekistanpfl",
+}
 
+
+def get_highlights_url(league_key: str, league_name: str) -> str:
+    if league_key in OFFICIAL_HIGHLIGHT_CHANNELS:
+        return OFFICIAL_HIGHLIGHT_CHANNELS[league_key]
+    query = urllib.parse.quote_plus(f"{league_name} highlights")
+    return f"https://www.youtube.com/results?search_query={query}"
 CHECK_INTERVAL_SECONDS = 3 * 60 * 60
 NOTIFY_WINDOW_HOURS = 24
 
@@ -80,7 +97,7 @@ TODAY_TEXTS = all_variants("btn_today")
 UPCOMING_TEXTS = all_variants("btn_upcoming")
 ADD_TEAM_TEXTS = all_variants("btn_add_team")
 REMOVE_TEAM_TEXTS = all_variants("btn_remove_team")
-
+HIGHLIGHTS_TEXTS = all_variants("btn_highlights")
 
 class Nav(StatesGroup):
     choosing_language = State()
@@ -117,8 +134,10 @@ def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
                 KeyboardButton(text=t(lang, "btn_topassists")),
                 KeyboardButton(text=t(lang, "btn_favorites")),
             ],
-            [KeyboardButton(text=t(lang, "btn_change_language"))],
-        ],
+            [
+                    KeyboardButton(text=t(lang, "btn_highlights")),
+                    KeyboardButton(text=t(lang, "btn_change_language")),
+                ],
         resize_keyboard=True,
     )
 
@@ -404,7 +423,17 @@ async def menu_topassists(message: Message, state: FSMContext):
         t(lang, "topassists_league_prompt"),
         reply_markup=league_kb(lang, False),
     )
-
+@dp.message(F.text.in_(HIGHLIGHTS_TEXTS))
+async def menu_highlights(message: Message, state: FSMContext):
+    lang = await get_lang(message.from_user.id)
+    await state.set_state(Nav.choosing_league)
+    await state.update_data(
+        action="highlights", include_all=False, lang=lang
+    )
+    await message.answer(
+        t(lang, "highlights_league_prompt"),
+        reply_markup=league_kb(lang, False),
+    )
 
 @dp.message(F.text.in_(FAVORITES_TEXTS))
 async def menu_favorite(message: Message, state: FSMContext):
@@ -606,7 +635,22 @@ async def handle_league_choice(message: Message, state: FSMContext):
             result = format_top_players(
                 players, league["name"], "assists", lang
             )
-
+    elif action == "highlights":
+        league = LEAGUES[key]
+        url = get_highlights_url(key, league["name"])
+        caption = t(lang, "highlights_caption", league=league["name"])
+        open_label = t(lang, "highlights_open")
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=open_label, url=url)]
+            ]
+        )
+        await state.clear()
+        await message.answer(
+            caption, reply_markup=main_menu_kb(lang)
+        )
+        await message.answer(" ", reply_markup=kb)
+        return
     else:
         result = "Error."
 
