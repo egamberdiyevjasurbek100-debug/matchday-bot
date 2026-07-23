@@ -453,7 +453,10 @@ async def menu_favorite(message: Message, state: FSMContext):
     text = f"{text}{BOT_FOOTER}"
     await state.set_state(Nav.favorites_menu)
     await state.update_data(lang=lang)
-    await message.answer(text, reply_markup=favorites_menu_kb(lang))@dp.message(Nav.favorites_menu, F.text.in_(ADD_TEAM_TEXTS))
+    await message.answer(text, reply_markup=favorites_menu_kb(lang))
+
+
+@dp.message(Nav.favorites_menu, F.text.in_(ADD_TEAM_TEXTS))
 async def add_favorite_start(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang") or await get_lang(message.from_user.id)
