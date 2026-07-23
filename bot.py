@@ -55,6 +55,8 @@ dp = Dispatcher(storage=MemoryStorage())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
+BOT_USERNAME = "@MatchDaylive_bot"
+BOT_FOOTER = f"\n\n🤖 {BOT_USERNAME}"
 OFFICIAL_HIGHLIGHT_CHANNELS = {
     "uzbekistan": "https://www.youtube.com/@uzbekistanpfl",
 }
@@ -447,10 +449,7 @@ async def menu_favorite(message: Message, state: FSMContext):
             lines.append(f"⭐ {fav['team_name']}")
         text = "\n".join(lines)
     else:
-        text = t(lang, "no_favorites")
-    await state.set_state(Nav.favorites_menu)
-    await state.update_data(lang=lang)
-    await message.answer(text, reply_markup=favorites_menu_kb(lang))
+        text = f"{text}{BOT_FOOTER}"
 
 
 @dp.message(Nav.favorites_menu, F.text.in_(ADD_TEAM_TEXTS))
@@ -639,7 +638,7 @@ async def handle_league_choice(message: Message, state: FSMContext):
     elif action == "highlights":
         league = LEAGUES[key]
         url = get_highlights_url(key, league["name"])
-        caption = t(lang, "highlights_caption", league=league["name"])
+        caption = t(lang, "highlights_caption", league=league["name"]) + BOT_FOOTER
         open_label = t(lang, "highlights_open")
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -655,6 +654,8 @@ async def handle_league_choice(message: Message, state: FSMContext):
         return
     else:
         result = "Error."
+
+    result = f"{result}{BOT_FOOTER}"
 
     await state.clear()
     await message.answer(result, reply_markup=main_menu_kb(lang))
