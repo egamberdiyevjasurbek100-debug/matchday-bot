@@ -55,8 +55,10 @@ dp = Dispatcher(storage=MemoryStorage())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
+
 BOT_USERNAME = "@MatchDaylive_bot"
 BOT_FOOTER = f"\n\n🤖 {BOT_USERNAME}"
+
 OFFICIAL_HIGHLIGHT_CHANNELS = {
     "uzbekistan": "https://www.youtube.com/@uzbekistanpfl",
 }
@@ -67,8 +69,20 @@ def get_highlights_url(league_key: str, league_name: str) -> str:
         return OFFICIAL_HIGHLIGHT_CHANNELS[league_key]
     query = urllib.parse.quote_plus(f"{league_name} highlights")
     return f"https://www.youtube.com/results?search_query={query}"
+
+
 CHECK_INTERVAL_SECONDS = 3 * 60 * 60
 NOTIFY_WINDOW_HOURS = 24
+
+ACTION_PROMPT_KEYS = {
+    "live": "live_league_prompt",
+    "today": "today_league_prompt",
+    "upcoming": "upcoming_league_prompt",
+    "standings": "standings_league_prompt",
+    "topscorers": "topscorers_league_prompt",
+    "topassists": "topassists_league_prompt",
+    "highlights": "highlights_league_prompt",
+}
 
 _lang_cache = {}
 
@@ -101,8 +115,10 @@ ADD_TEAM_TEXTS = all_variants("btn_add_team")
 REMOVE_TEAM_TEXTS = all_variants("btn_remove_team")
 HIGHLIGHTS_TEXTS = all_variants("btn_highlights")
 
+
 class Nav(StatesGroup):
     choosing_language = State()
+    choosing_category = State()
     choosing_league = State()
     choosing_fixtures_type = State()
     choosing_team = State()
@@ -145,6 +161,17 @@ def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
     )
 
 
+def category_kb(lang: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=t(lang, "btn_category_leagues"))],
+            [KeyboardButton(text=t(lang, "btn_category_cups"))],
+            [KeyboardButton(text=t(lang, "btn_back"))],
+        ],
+        resize_keyboard=True,
+    )
+
+
 def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -158,10 +185,15 @@ def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
     )
 
 
-def league_kb(lang: str, include_all: bool) -> ReplyKeyboardMarkup:
+def league_kb(
+    lang: str, include_all: bool, category: str = None
+) -> ReplyKeyboardMarkup:
     rows = []
     row = []
-    for league in LEAGUES.values():
+    items = list(LEAGUES.values())
+    if category:
+        items = [lg for lg in items if lg.get("type") == category]
+    for league in items:
         row.append(KeyboardButton(text=league["name"]))
         if len(row) == 2:
             rows.append(row)
@@ -344,11 +376,10 @@ async def go_back(message: Message, state: FSMContext):
 @dp.message(F.text.in_(LIVE_TEXTS))
 async def menu_live(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(action="live", include_all=True, lang=lang)
     await message.answer(
-        t(lang, "live_league_prompt"),
-        reply_markup=league_kb(lang, True),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
 
 
@@ -367,11 +398,10 @@ async def menu_fixtures(message: Message, state: FSMContext):
 async def menu_today(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang") or await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(action="today", include_all=True, lang=lang)
     await message.answer(
-        t(lang, "today_league_prompt"),
-        reply_markup=league_kb(lang, True),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
 
 
@@ -379,64 +409,86 @@ async def menu_today(message: Message, state: FSMContext):
 async def menu_upcoming(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang") or await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(
         action="upcoming", include_all=False, lang=lang
     )
     await message.answer(
-        t(lang, "upcoming_league_prompt"),
-        reply_markup=league_kb(lang, False),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
 
 
 @dp.message(F.text.in_(STANDINGS_TEXTS))
 async def menu_standings(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(
         action="standings", include_all=False, lang=lang
     )
     await message.answer(
-        t(lang, "standings_league_prompt"),
-        reply_markup=league_kb(lang, False),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
 
 
 @dp.message(F.text.in_(TOPSCORERS_TEXTS))
 async def menu_topscorers(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(
         action="topscorers", include_all=False, lang=lang
     )
     await message.answer(
-        t(lang, "topscorers_league_prompt"),
-        reply_markup=league_kb(lang, False),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
 
 
 @dp.message(F.text.in_(TOPASSISTS_TEXTS))
 async def menu_topassists(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(
         action="topassists", include_all=False, lang=lang
     )
     await message.answer(
-        t(lang, "topassists_league_prompt"),
-        reply_markup=league_kb(lang, False),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
+
+
 @dp.message(F.text.in_(HIGHLIGHTS_TEXTS))
 async def menu_highlights(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
-    await state.set_state(Nav.choosing_league)
+    await state.set_state(Nav.choosing_category)
     await state.update_data(
         action="highlights", include_all=False, lang=lang
     )
     await message.answer(
-        t(lang, "highlights_league_prompt"),
-        reply_markup=league_kb(lang, False),
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
+
+
+@dp.message(Nav.choosing_category)
+async def handle_category_choice(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang") or await get_lang(message.from_user.id)
+    include_all = data.get("include_all", False)
+    action = data.get("action")
+    text = message.text
+
+    if text == t(lang, "btn_category_leagues"):
+        category = "league"
+    elif text == t(lang, "btn_category_cups"):
+        category = "cup"
+    else:
+        await message.answer(t(lang, "choose_from_buttons"))
+        return
+
+    await state.set_state(Nav.choosing_league)
+    prompt_key = ACTION_PROMPT_KEYS.get(action, "live_league_prompt")
+    await message.answer(
+        t(lang, prompt_key),
+        reply_markup=league_kb(lang, include_all, category),
+    )
+
 
 @dp.message(F.text.in_(FAVORITES_TEXTS))
 async def menu_favorite(message: Message, state: FSMContext):
@@ -466,7 +518,7 @@ async def add_favorite_start(message: Message, state: FSMContext):
     )
     await message.answer(
         t(lang, "pick_league_for_team"),
-        reply_markup=league_kb(lang, False),
+        reply_markup=league_kb(lang, False, category="league"),
     )
 
 
@@ -567,6 +619,27 @@ async def handle_league_choice(message: Message, state: FSMContext):
         )
         return
 
+    if action == "highlights":
+        league = LEAGUES[key]
+        url = get_highlights_url(key, league["name"])
+        caption = (
+            t(lang, "highlights_caption", league=league["name"])
+            + BOT_FOOTER
+        )
+        open_label = t(lang, "highlights_open")
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=open_label, url=url)]
+            ]
+        )
+        await state.clear()
+        await message.answer(caption, reply_markup=kb)
+        await message.answer(
+            t(lang, "main_menu_label"),
+            reply_markup=main_menu_kb(lang),
+        )
+        return
+
     await message.answer(t(lang, "loading"))
 
     if action == "live":
@@ -639,23 +712,7 @@ async def handle_league_choice(message: Message, state: FSMContext):
             result = format_top_players(
                 players, league["name"], "assists", lang
             )
-    elif action == "highlights":
-        league = LEAGUES[key]
-        url = get_highlights_url(key, league["name"])
-        caption = t(lang, "highlights_caption", league=league["name"]) + BOT_FOOTER
-        open_label = t(lang, "highlights_open")
-        kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text=open_label, url=url)]
-            ]
-        )
-        await state.clear()
-        await message.answer(caption, reply_markup=kb)
-        await message.answer(
-            t(lang, "main_menu_label"),
-            reply_markup=main_menu_kb(lang),
-        )
-        return
+
     else:
         result = "Error."
 
