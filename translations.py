@@ -114,13 +114,12 @@ TRANSLATIONS = {
         ),
         "highlights_open": "▶️ Ochish",
         "highlights_caption": "🎬 {league} — so'nggi highlights",
-    },
-    "btn_category_leagues": "🏆 Ligalar",
+        "btn_category_leagues": "🏆 Ligalar",
         "btn_category_cups": "🏅 Kubok turnirlari",
         "category_prompt": (
             "Ligalar yoki kubok turnirlarini tanlang:"
         ),
-    
+    },
     "ru": {
         "welcome": (
             "⚽ Привет, <b>{name}</b>!\n\n"
@@ -231,13 +230,12 @@ TRANSLATIONS = {
         ),
         "highlights_open": "▶️ Открыть",
         "highlights_caption": "🎬 {league} — последние хайлайты",
-    },
-    "btn_category_leagues": "🏆 Лиги",
+        "btn_category_leagues": "🏆 Лиги",
         "btn_category_cups": "🏅 Кубковые турниры",
         "category_prompt": (
             "Выберите лиги или кубковые турниры:"
         ),
-    
+    },
     "en": {
         "welcome": (
             "⚽ Hi, <b>{name}</b>!\n\n"
@@ -346,13 +344,12 @@ TRANSLATIONS = {
         ),
         "highlights_open": "▶️ Open",
         "highlights_caption": "🎬 {league} — latest highlights",
-    },
-    "btn_category_leagues": "🏆 Leagues",
+        "btn_category_leagues": "🏆 Leagues",
         "btn_category_cups": "🏅 Cup competitions",
         "category_prompt": (
             "Choose leagues or cup competitions:"
         ),
-    
+    },
 }
 
 
