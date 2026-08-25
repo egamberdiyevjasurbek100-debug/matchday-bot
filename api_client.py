@@ -70,7 +70,7 @@ async def _get_with_season_fallback(
 async def get_live_fixtures():
     params = {
         "live": "all",
-        "timezone": "Asia/Tashkent",
+        "timezone": "UTC",
     }
     return await _get("fixtures", params, ttl=60)
 
@@ -78,7 +78,7 @@ async def get_live_fixtures():
 async def get_fixtures_by_date(date_str: str):
     params = {
         "date": date_str,
-        "timezone": "Asia/Tashkent",
+        "timezone": "UTC",
     }
     return await _get("fixtures", params, ttl=600)
 
@@ -86,7 +86,7 @@ async def get_fixtures_by_date(date_str: str):
 async def get_upcoming_fixtures(league_id: int, season: int, count: int = 8):
     extra = {
         "next": count,
-        "timezone": "Asia/Tashkent",
+        "timezone": "UTC",
     }
     return await _get_with_season_fallback(
         "fixtures",
@@ -147,6 +147,6 @@ async def get_upcoming_fixtures_for_team(team_id: int, count: int = 1):
     params = {
         "team": team_id,
         "next": count,
-        "timezone": "Asia/Tashkent",
+        "timezone": "UTC",
     }
     return await _get("fixtures", params, ttl=3600)
