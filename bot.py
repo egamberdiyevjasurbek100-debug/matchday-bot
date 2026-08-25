@@ -283,22 +283,19 @@ def filter_by_league(fixtures: list, key: str):
 def format_standings(standings: list, league_name: str, lang: str) -> str:
     title = t(lang, "standings_title")
     lines = [f"<b>{league_name} — {title}</b>\n"]
-    columns = t(lang, "standings_columns")
-    lines.append(f"<code>{columns}</code>")
     for team in standings:
-        rank = team["rank"]
-        name = team["team"]["name"][:19]
-        played = team["all"]["played"]
-        win = team["all"]["win"]
-        draw = team["all"]["draw"]
-        lose = team["all"]["lose"]
-        points = team["points"]
-        lines.append(
-            f"<code>{rank:<4}{name:<22}{played:<4}"
-            f"{win:<4}{draw:<4}{lose:<4}{points}</code>"
+        row = t(
+            lang,
+            "standings_row",
+            rank=team["rank"],
+            name=team["team"]["name"],
+            points=team["points"],
+            played=team["all"]["played"],
+            win=team["all"]["win"],
+            draw=team["all"]["draw"],
+            lose=team["all"]["lose"],
         )
-    footer = t(lang, "standings_footer")
-    lines.append(f"\n<i>{footer}</i>")
+        lines.append(row)
     return "\n".join(lines)
 
 
