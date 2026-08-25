@@ -94,12 +94,12 @@ TRANSLATIONS = {
         "standings_columns": (
             "#   Jamoa                 O   G   D   M   Ochko"
         ),
-        "standings_footer": (
-            "O-o'yin, G-g'alaba, D-durang, M-mag'lubiyat"
-        ),
         "standings_row": (
             "{rank}. <b>{name}</b> — {points} ochko  "
             "(O:{played} G:{win} D:{draw} M:{lose})"
+        ),
+        "standings_footer": (
+            "O-o'yin, G-g'alaba, D-durang, M-mag'lubiyat"
         ),
         "no_stats": (
             "<b>{league}</b>\n\nMa'lumot hozircha topilmadi."
@@ -123,6 +123,12 @@ TRANSLATIONS = {
         "category_prompt": (
             "Ligalar yoki kubok turnirlarini tanlang:"
         ),
+        "btn_timezone": "🕐 Vaqt zonasi",
+        "timezone_prompt": (
+            "Vaqt zonangizni tanlang "
+            "(o'yin vaqtlari shu bo'yicha ko'rsatiladi):"
+        ),
+        "timezone_saved": "✅ Vaqt zonasi saqlandi!",
     },
     "ru": {
         "welcome": (
@@ -214,12 +220,12 @@ TRANSLATIONS = {
         "standings_columns": (
             "#   Команда               И   В   Н   П   Очки"
         ),
-        "standings_footer": (
-            "И-игры, В-победы, Н-ничьи, П-поражения"
-        ),
         "standings_row": (
             "{rank}. <b>{name}</b> — {points} очков  "
             "(И:{played} В:{win} Н:{draw} П:{lose})"
+        ),
+        "standings_footer": (
+            "И-игры, В-победы, Н-ничьи, П-поражения"
         ),
         "no_stats": (
             "<b>{league}</b>\n\nДанные пока недоступны."
@@ -243,6 +249,12 @@ TRANSLATIONS = {
         "category_prompt": (
             "Выберите лиги или кубковые турниры:"
         ),
+        "btn_timezone": "🕐 Часовой пояс",
+        "timezone_prompt": (
+            "Выберите часовой пояс "
+            "(время матчей будет показано по нему):"
+        ),
+        "timezone_saved": "✅ Часовой пояс сохранён!",
     },
     "en": {
         "welcome": (
@@ -334,13 +346,13 @@ TRANSLATIONS = {
         "standings_columns": (
             "#   Team                  P   W   D   L   Pts"
         ),
-        "standings_footer": "P-played, W-wins, D-draws, L-losses",
-        "no_stats": (
-            "<b>{league}</b>\n\nData not available yet."
-        ),
         "standings_row": (
             "{rank}. <b>{name}</b> — {points} pts  "
             "(P:{played} W:{win} D:{draw} L:{lose})"
+        ),
+        "standings_footer": "P-played, W-wins, D-draws, L-losses",
+        "no_stats": (
+            "<b>{league}</b>\n\nData not available yet."
         ),
         "topscorers_label": "⚽ Top scorers",
         "topassists_label": "🎯 Top assists",
@@ -361,6 +373,12 @@ TRANSLATIONS = {
         "category_prompt": (
             "Choose leagues or cup competitions:"
         ),
+        "btn_timezone": "🕐 Timezone",
+        "timezone_prompt": (
+            "Choose your timezone "
+            "(match times will be shown accordingly):"
+        ),
+        "timezone_saved": "✅ Timezone saved!",
     },
 }
 
