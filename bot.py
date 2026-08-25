@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 from aiohttp import web
 from aiogram import Bot, Dispatcher, F
@@ -41,6 +41,8 @@ from supabase_client import (
     mark_notified,
     get_user_language,
     set_user_language,
+    get_user_timezone,
+    set_user_timezone,
 )
 from translations import t, all_variants
 
@@ -84,7 +86,22 @@ ACTION_PROMPT_KEYS = {
     "highlights": "highlights_league_prompt",
 }
 
+TIMEZONE_OPTIONS = [
+    ("🇺🇿 Toshkent (UTC+5)", "+5"),
+    ("🇷🇺 Moskva (UTC+3)", "+3"),
+    ("🇹🇷 Istanbul (UTC+3)", "+3"),
+    ("🇦🇪 Dubay (UTC+4)", "+4"),
+    ("🇬🇧 London (UTC+0)", "+0"),
+    ("🇩🇪 Berlin (UTC+1)", "+1"),
+    ("🇺🇸 Nyu-York (UTC-5)", "-5"),
+    ("🇰🇷 Seul (UTC+9)", "+9"),
+]
+TZ_LABEL_TO_OFFSET = dict(TIMEZONE_OPTIONS)
+
+DEFAULT_TZ_BY_LANG = {"uz": "+5", "ru": "+3", "en": "+0"}
+
 _lang_cache = {}
+_tz_cache = {}
 
 
 async def get_lang(user_id: int):
@@ -101,6 +118,41 @@ async def save_lang(user_id: int, lang: str):
     _lang_cache[user_id] = lang
 
 
+async def get_tz(user_id: int):
+    if user_id in _tz_cache:
+        return _tz_cache[user_id]
+    tz = await get_user_timezone(user_id)
+    if tz:
+        _tz_cache[user_id] = tz
+    return tz
+
+
+async def save_tz(user_id: int, tz: str):
+    await set_user_timezone(user_id, tz)
+    _tz_cache[user_id] = tz
+
+
+def parse_offset(offset_str: str) -> int:
+    try:
+        return int(offset_str)
+    except (TypeError, ValueError):
+        return 5
+
+
+async def get_offset(user_id: int, lang: str) -> int:
+    tz = await get_tz(user_id)
+    if not tz:
+        tz = DEFAULT_TZ_BY_LANG.get(lang, "+5")
+        await save_tz(user_id, tz)
+    return parse_offset(tz)
+
+
+def convert_time(iso_date: str, offset_hours: int) -> datetime:
+    dt = datetime.fromisoformat(iso_date)
+    dt_utc = dt.astimezone(dt_timezone.utc)
+    return dt_utc + timedelta(hours=offset_hours)
+
+
 BACK_TEXTS = all_variants("btn_back")
 LIVE_TEXTS = all_variants("btn_live")
 FIXTURES_TEXTS = all_variants("btn_fixtures")
@@ -114,10 +166,12 @@ UPCOMING_TEXTS = all_variants("btn_upcoming")
 ADD_TEAM_TEXTS = all_variants("btn_add_team")
 REMOVE_TEAM_TEXTS = all_variants("btn_remove_team")
 HIGHLIGHTS_TEXTS = all_variants("btn_highlights")
+TIMEZONE_TEXTS = all_variants("btn_timezone")
 
 
 class Nav(StatesGroup):
     choosing_language = State()
+    choosing_timezone = State()
     choosing_category = State()
     choosing_league = State()
     choosing_fixtures_type = State()
@@ -137,6 +191,20 @@ def language_kb() -> ReplyKeyboardMarkup:
     )
 
 
+def timezone_kb(lang: str) -> ReplyKeyboardMarkup:
+    rows = []
+    row = []
+    for label, _ in TIMEZONE_OPTIONS:
+        row.append(KeyboardButton(text=label))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([KeyboardButton(text=t(lang, "btn_back"))])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
+
+
 def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -154,8 +222,9 @@ def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text=t(lang, "btn_highlights")),
-                KeyboardButton(text=t(lang, "btn_change_language")),
+                KeyboardButton(text=t(lang, "btn_timezone")),
             ],
+            [KeyboardButton(text=t(lang, "btn_change_language"))],
         ],
         resize_keyboard=True,
     )
@@ -231,7 +300,7 @@ def team_selection_kb(lang: str, names: list) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 
-def format_fixture(fixture: dict, lang: str) -> str:
+def format_fixture(fixture: dict, lang: str, offset: int) -> str:
     home = fixture["teams"]["home"]["name"]
     away = fixture["teams"]["away"]["name"]
     goals_home = fixture["goals"]["home"]
@@ -240,7 +309,8 @@ def format_fixture(fixture: dict, lang: str) -> str:
     elapsed = fixture["fixture"]["status"]["elapsed"]
 
     if status == "NS":
-        time_str = fixture["fixture"]["date"][11:16]
+        local_dt = convert_time(fixture["fixture"]["date"], offset)
+        time_str = local_dt.strftime("%H:%M")
         return f"⏳ {time_str}  {home} — {away}"
     elif status in ("1H", "2H", "ET", "LIVE"):
         return f"🔴 {elapsed}'  {home} {goals_home}:{goals_away} {away}"
@@ -256,12 +326,12 @@ def format_fixture(fixture: dict, lang: str) -> str:
         return f"{home} {gh}:{ga} {away} ({status})"
 
 
-def format_upcoming_fixture(fixture: dict) -> str:
+def format_upcoming_fixture(fixture: dict, offset: int) -> str:
     home = fixture["teams"]["home"]["name"]
     away = fixture["teams"]["away"]["name"]
-    dt = fixture["fixture"]["date"]
-    date_part = dt[5:10]
-    time_part = dt[11:16]
+    local_dt = convert_time(fixture["fixture"]["date"], offset)
+    date_part = local_dt.strftime("%m-%d")
+    time_part = local_dt.strftime("%H:%M")
     return f"🗓 {date_part} {time_part}  {home} — {away}"
 
 
@@ -348,6 +418,12 @@ async def handle_language_choice(message: Message, state: FSMContext):
         )
         return
     await save_lang(message.from_user.id, chosen)
+    existing_tz = await get_tz(message.from_user.id)
+    if not existing_tz:
+        await save_tz(
+            message.from_user.id,
+            DEFAULT_TZ_BY_LANG.get(chosen, "+5"),
+        )
     await state.clear()
     text = t(chosen, "welcome", name=message.from_user.first_name)
     await message.answer(text, reply_markup=main_menu_kb(chosen))
@@ -358,6 +434,31 @@ async def menu_change_language(message: Message, state: FSMContext):
     await state.set_state(Nav.choosing_language)
     await message.answer(
         t("uz", "choose_language"), reply_markup=language_kb()
+    )
+
+
+@dp.message(F.text.in_(TIMEZONE_TEXTS))
+async def menu_timezone(message: Message, state: FSMContext):
+    lang = await get_lang(message.from_user.id)
+    await state.set_state(Nav.choosing_timezone)
+    await state.update_data(lang=lang)
+    await message.answer(
+        t(lang, "timezone_prompt"), reply_markup=timezone_kb(lang)
+    )
+
+
+@dp.message(Nav.choosing_timezone)
+async def handle_timezone_choice(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang") or await get_lang(message.from_user.id)
+    offset = TZ_LABEL_TO_OFFSET.get(message.text)
+    if offset is None:
+        await message.answer(t(lang, "choose_from_buttons"))
+        return
+    await save_tz(message.from_user.id, offset)
+    await state.clear()
+    await message.answer(
+        t(lang, "timezone_saved"), reply_markup=main_menu_kb(lang)
     )
 
 
@@ -638,6 +739,7 @@ async def handle_league_choice(message: Message, state: FSMContext):
         return
 
     await message.answer(t(lang, "loading"))
+    offset = await get_offset(message.from_user.id, lang)
 
     if action == "live":
         all_fixtures = await get_live_fixtures()
@@ -646,19 +748,19 @@ async def handle_league_choice(message: Message, state: FSMContext):
             result = t(lang, "live_no_matches", title=title)
         else:
             lines = "\n".join(
-                format_fixture(f, lang) for f in fixtures
+                format_fixture(f, lang, offset) for f in fixtures
             )
             result = t(lang, "live_header", title=title, lines=lines)
 
     elif action == "today":
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = datetime.now(dt_timezone.utc).strftime("%Y-%m-%d")
         all_fixtures = await get_fixtures_by_date(today)
         fixtures, title = filter_by_league(all_fixtures, key)
         if not fixtures:
             result = t(lang, "no_games_today", title=title)
         else:
             lines = "\n".join(
-                format_fixture(f, lang) for f in fixtures
+                format_fixture(f, lang, offset) for f in fixtures
             )
             result = t(lang, "today_header", title=title, lines=lines)
 
@@ -670,7 +772,7 @@ async def handle_league_choice(message: Message, state: FSMContext):
             result = t(lang, "no_upcoming", league=league["name"])
         else:
             lines = "\n".join(
-                format_upcoming_fixture(f) for f in fixtures
+                format_upcoming_fixture(f, offset) for f in fixtures
             )
             result = t(
                 lang, "upcoming_header",
@@ -746,8 +848,6 @@ async def check_favorite_notifications():
                 if 0 < hours_left <= NOTIFY_WINDOW_HOURS:
                     home = fixture["teams"]["home"]["name"]
                     away = fixture["teams"]["away"]["name"]
-                    time_str = fixture["fixture"]["date"][11:16]
-                    date_str = fixture["fixture"]["date"][5:10]
 
                     for row in rows:
                         notified = row.get("notified_fixtures") or ""
@@ -760,12 +860,18 @@ async def check_favorite_notifications():
                             user_lang = (
                                 await get_lang(row["user_id"]) or "uz"
                             )
+                            user_offset = await get_offset(
+                                row["user_id"], user_lang
+                            )
+                            local_dt = convert_time(
+                                fixture["fixture"]["date"], user_offset
+                            )
                             text = t(
                                 user_lang,
                                 "notification_text",
                                 team=row["team_name"],
-                                date=date_str,
-                                time=time_str,
+                                date=local_dt.strftime("%m-%d"),
+                                time=local_dt.strftime("%H:%M"),
                                 home=home,
                                 away=away,
                             )
