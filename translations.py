@@ -97,6 +97,10 @@ TRANSLATIONS = {
         "standings_footer": (
             "O-o'yin, G-g'alaba, D-durang, M-mag'lubiyat"
         ),
+        "standings_row": (
+            "{rank}. <b>{name}</b> — {points} ochko  "
+            "(O:{played} G:{win} D:{draw} M:{lose})"
+        ),
         "no_stats": (
             "<b>{league}</b>\n\nMa'lumot hozircha topilmadi."
         ),
@@ -212,6 +216,10 @@ TRANSLATIONS = {
         ),
         "standings_footer": (
             "И-игры, В-победы, Н-ничьи, П-поражения"
+        ),
+        "standings_row": (
+            "{rank}. <b>{name}</b> — {points} очков  "
+            "(И:{played} В:{win} Н:{draw} П:{lose})"
         ),
         "no_stats": (
             "<b>{league}</b>\n\nДанные пока недоступны."
@@ -329,6 +337,10 @@ TRANSLATIONS = {
         "standings_footer": "P-played, W-wins, D-draws, L-losses",
         "no_stats": (
             "<b>{league}</b>\n\nData not available yet."
+        ),
+        "standings_row": (
+            "{rank}. <b>{name}</b> — {points} pts  "
+            "(P:{played} W:{win} D:{draw} L:{lose})"
         ),
         "topscorers_label": "⚽ Top scorers",
         "topassists_label": "🎯 Top assists",
