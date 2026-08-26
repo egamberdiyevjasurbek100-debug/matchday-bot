@@ -123,6 +123,13 @@ TRANSLATIONS = {
         "category_prompt": (
             "Ligalar yoki kubok turnirlarini tanlang:"
         ),
+        "btn_star_games": "🔥 Kunning asosiy o'yinlari",
+        "star_games_header": (
+            "<b>🔥 Kunning asosiy o'yinlari</b>\n\n{body}"
+        ),
+        "no_star_games": (
+            "Bugun asosiy ligalarda o'yin yo'q 📅"
+        ),
         "btn_timezone": "🕐 Vaqt zonasi",
         "timezone_prompt": (
             "Vaqt zonangizni tanlang "
@@ -249,6 +256,13 @@ TRANSLATIONS = {
         "category_prompt": (
             "Выберите лиги или кубковые турниры:"
         ),
+        "btn_star_games": "🔥 Главные матчи дня",
+        "star_games_header": (
+            "<b>🔥 Главные матчи дня</b>\n\n{body}"
+        ),
+        "no_star_games": (
+            "Сегодня нет матчей в топ-лигах 📅"
+        ),
         "btn_timezone": "🕐 Часовой пояс",
         "timezone_prompt": (
             "Выберите часовой пояс "
@@ -372,6 +386,13 @@ TRANSLATIONS = {
         "btn_category_cups": "🏅 Cup competitions",
         "category_prompt": (
             "Choose leagues or cup competitions:"
+        ),
+        "btn_star_games": "🔥 Today's top games",
+        "star_games_header": (
+            "<b>🔥 Today's top games</b>\n\n{body}"
+        ),
+        "no_star_games": (
+            "No games today in the top leagues 📅"
         ),
         "btn_timezone": "🕐 Timezone",
         "timezone_prompt": (
