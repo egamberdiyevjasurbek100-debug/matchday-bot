@@ -153,3 +153,11 @@ async def set_user_timezone(user_id: int, timezone: str):
         body = {"user_id": user_id, "timezone": timezone}
         async with session.post(USERS_URL, json=body) as resp3:
             return resp3.status
+            async def get_all_users():
+    params = {"select": "user_id"}
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(USERS_URL, params=params) as resp:
+            data = await resp.json()
+            if isinstance(data, list):
+                return [item["user_id"] for item in data if isinstance(item, dict)]
+    return []
