@@ -21,7 +21,7 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 
-from config import BOT_TOKEN, LEAGUES, ALL_LEAGUE_IDS
+from config import BOT_TOKEN, LEAGUES, ALL_LEAGUE_IDS, ADMIN_ID
 from api_client import (
     get_live_fixtures,
     get_fixtures_by_date,
@@ -43,6 +43,7 @@ from supabase_client import (
     set_user_language,
     get_user_timezone,
     set_user_timezone,
+    get_all_users,
 )
 from translations import t, all_variants
 
@@ -182,6 +183,7 @@ class Nav(StatesGroup):
     choosing_team = State()
     removing_team = State()
     favorites_menu = State()
+    broadcasting = State()
 
 
 def language_kb() -> ReplyKeyboardMarkup:
@@ -894,6 +896,38 @@ async def check_favorite_notifications():
             logging.error(f"Bildirishnoma tekshiruvida xato: {e}")
 
         await asyncio.sleep(CHECK_INTERVAL_SECONDS)
+
+
+@dp.message(Command("broadcast"))
+async def cmd_broadcast(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        return
+    await state.set_state(Nav.broadcasting)
+    await message.answer(
+        "📢 Barchaga yuboriladigan xabar matnini yozing:"
+    )
+
+
+@dp.message(Nav.broadcasting)
+async def handle_broadcast(message: Message, state: FSMContext):
+    if message.from_user.id != ADMIN_ID:
+        await state.clear()
+        return
+    await state.clear()
+    users = await get_all_users()
+    sent = 0
+    failed = 0
+    for user_id in users:
+        try:
+            await bot.send_message(user_id, message.text)
+            sent += 1
+        except Exception as e:
+            failed += 1
+            logging.error(f"Broadcast xato user_id={user_id}: {e}")
+        await asyncio.sleep(0.05)
+    await message.answer(
+        f"✅ Yuborildi: {sent}\n❌ Xato: {failed}"
+    )
 
 
 async def set_bot_commands():
