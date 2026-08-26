@@ -26,6 +26,8 @@ LEAGUES = {
     "copadelrey": {"id": 143, "name": "🇪🇸 Copa del Rey", "type": "cup"},
     "supercopa": {"id": 556, "name": "🇪🇸 Super Cup", "type": "cup"},
     "acl": {"id": 480, "name": "🌏 AFC Champions League Elite", "type": "cup"},
+    "saudi": {"id": 307, "name": "🇸🇦 Saudiya Pro League", "type": "league"},
+    "mls": {"id": 253, "name": "🇺🇸 MLS", "type": "league"},
 }
 
 ALL_LEAGUE_IDS = {league["id"] for league in LEAGUES.values()}
