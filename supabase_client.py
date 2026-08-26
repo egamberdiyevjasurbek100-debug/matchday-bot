@@ -82,7 +82,7 @@ async def mark_notified(row_id: int, notified_fixtures: str):
     body = {"notified_fixtures": notified_fixtures}
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.patch(
-            USERS_URL if False else REST_URL, params=params, json=body
+            REST_URL, params=params, json=body
         ) as resp:
             if resp.status not in (200, 204):
                 text = await resp.text()
@@ -153,11 +153,17 @@ async def set_user_timezone(user_id: int, timezone: str):
         body = {"user_id": user_id, "timezone": timezone}
         async with session.post(USERS_URL, json=body) as resp3:
             return resp3.status
-            async def get_all_users():
+
+
+async def get_all_users():
     params = {"select": "user_id"}
     async with aiohttp.ClientSession(headers=HEADERS) as session:
         async with session.get(USERS_URL, params=params) as resp:
             data = await resp.json()
             if isinstance(data, list):
-                return [item["user_id"] for item in data if isinstance(item, dict)]
+                return [
+                    item["user_id"]
+                    for item in data
+                    if isinstance(item, dict)
+                ]
     return []
