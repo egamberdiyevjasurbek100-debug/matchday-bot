@@ -88,6 +88,10 @@ ACTION_PROMPT_KEYS = {
 
 TIMEZONE_OPTIONS = [
     ("🇺🇿 Toshkent (UTC+5)", "+5"),
+    ("🇰🇿 Qozog'iston (UTC+5)", "+5"),
+    ("🇹🇯 Tojikiston (UTC+5)", "+5"),
+    ("🇹🇲 Turkmaniston (UTC+5)", "+5"),
+    ("🇰🇬 Qirg'iziston (UTC+6)", "+6"),
     ("🇷🇺 Moskva (UTC+3)", "+3"),
     ("🇹🇷 Istanbul (UTC+3)", "+3"),
     ("🇦🇪 Dubay (UTC+4)", "+4"),
