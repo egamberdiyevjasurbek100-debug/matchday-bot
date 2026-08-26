@@ -6,6 +6,7 @@ API_BASE_URL = "https://v3.football.api-sports.io"
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 
 LEAGUES = {
     "epl": {"id": 39, "name": "🏴 Premier League", "type": "league"},
