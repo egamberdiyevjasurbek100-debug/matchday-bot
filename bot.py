@@ -930,6 +930,23 @@ async def handle_broadcast(message: Message, state: FSMContext):
     )
 
 
+@dp.message(Command("testleagues"))
+async def cmd_test_leagues(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    from api_client import _get
+    lines = []
+    for name in ["Saudi", "Major League Soccer"]:
+        data = await _get("leagues", {"search": name})
+        lines.append(f"=== {name} ===")
+        for item in data:
+            league = item["league"]
+            country = item.get("country", {}).get("name", "")
+            lines.append(f"ID: {league['id']} — {league['name']} ({country})")
+    text = "\n".join(lines) if lines else "Natija topilmadi."
+    await message.answer(text)
+
+
 async def set_bot_commands():
     commands = [
         BotCommand(
