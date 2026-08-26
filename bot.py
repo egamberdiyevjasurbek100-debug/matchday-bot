@@ -58,6 +58,14 @@ dp = Dispatcher(storage=MemoryStorage())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
+LEAGUE_NAME_TO_KEY = {
+    league["name"]: key for key, league in LEAGUES.items()
+}
+
+STAR_LEAGUES = [
+    "epl", "laliga", "seriea", "bundesliga", "ligue1",
+    "ucl", "uel", "saudi", "mls",
+]
 
 BOT_USERNAME = "@MatchDaylive_bot"
 BOT_FOOTER = f"\n\n🤖 {BOT_USERNAME}"
@@ -171,6 +179,7 @@ UPCOMING_TEXTS = all_variants("btn_upcoming")
 ADD_TEAM_TEXTS = all_variants("btn_add_team")
 REMOVE_TEAM_TEXTS = all_variants("btn_remove_team")
 HIGHLIGHTS_TEXTS = all_variants("btn_highlights")
+STAR_GAMES_TEXTS = all_variants("btn_star_games")
 TIMEZONE_TEXTS = all_variants("btn_timezone")
 
 
@@ -254,6 +263,7 @@ def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
                 KeyboardButton(text=t(lang, "btn_today")),
                 KeyboardButton(text=t(lang, "btn_upcoming")),
             ],
+            [KeyboardButton(text=t(lang, "btn_star_games"))],
             [KeyboardButton(text=t(lang, "btn_back"))],
         ],
         resize_keyboard=True,
@@ -520,6 +530,42 @@ async def menu_upcoming(message: Message, state: FSMContext):
     await message.answer(
         t(lang, "category_prompt"), reply_markup=category_kb(lang)
     )
+
+
+@dp.message(Nav.choosing_fixtures_type, F.text.in_(STAR_GAMES_TEXTS))
+async def menu_star_games(message: Message, state: FSMContext):
+    lang = await get_lang(message.from_user.id)
+    offset = await get_offset(message.from_user.id, lang)
+    await message.answer(t(lang, "loading"))
+
+    today = datetime.now(dt_timezone.utc).strftime("%Y-%m-%d")
+    all_fixtures = await get_fixtures_by_date(today)
+
+    sections = []
+    for key in STAR_LEAGUES:
+        league = LEAGUES.get(key)
+        if not league:
+            continue
+        league_fixtures = [
+            f for f in all_fixtures
+            if f["league"]["id"] == league["id"]
+        ]
+        if not league_fixtures:
+            continue
+        lines = "\n".join(
+            format_fixture(f, lang, offset) for f in league_fixtures
+        )
+        sections.append(f"<b>{league['name']}</b>\n{lines}")
+
+    if not sections:
+        result = t(lang, "no_star_games")
+    else:
+        body = "\n\n".join(sections)
+        result = t(lang, "star_games_header", body=body)
+
+    result = f"{result}{BOT_FOOTER}"
+    await state.clear()
+    await message.answer(result, reply_markup=main_menu_kb(lang))
 
 
 @dp.message(F.text.in_(STANDINGS_TEXTS))
