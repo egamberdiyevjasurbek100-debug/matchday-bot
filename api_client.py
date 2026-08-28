@@ -151,7 +151,7 @@ async def get_upcoming_fixtures_for_team(team_id: int, count: int = 1):
     }
 
 
-    async def get_all_rounds(league_id: int, season: int):
+async def get_all_rounds(league_id: int, season: int):
     return await _get(
         "fixtures/rounds",
         {"league": league_id, "season": season},
