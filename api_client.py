@@ -149,4 +149,33 @@ async def get_upcoming_fixtures_for_team(team_id: int, count: int = 1):
         "next": count,
         "timezone": "UTC",
     }
+
+
+    async def get_all_rounds(league_id: int, season: int):
+    return await _get(
+        "fixtures/rounds",
+        {"league": league_id, "season": season},
+        ttl=86400,
+    )
+
+
+async def get_current_round(league_id: int, season: int):
+    data = await _get(
+        "fixtures/rounds",
+        {"league": league_id, "season": season, "current": "true"},
+        ttl=3600,
+    )
+    if data:
+        return data[0]
+    return None
+
+
+async def get_fixtures_by_round(league_id: int, season: int, round_name: str):
+    params = {
+        "league": league_id,
+        "season": season,
+        "round": round_name,
+        "timezone": "UTC",
+    }
+    return await _get("fixtures", params, ttl=600)
     return await _get("fixtures", params, ttl=3600)
