@@ -130,6 +130,18 @@ TRANSLATIONS = {
         "no_star_games": (
             "Bugun asosiy ligalarda o'yin yo'q 📅"
         ),
+        "btn_results": "🔁 Natijalar",
+        "results_league_prompt": (
+            "Qaysi liganing natijalarini ko'rmoqchisiz?"
+        ),
+        "round_header": (
+            "<b>{league}</b>\n{round}\n\n{lines}"
+        ),
+        "no_round_data": (
+            "<b>{league}</b>\n\nBu tur uchun ma'lumot topilmadi."
+        ),
+        "btn_prev_round": "◀️ Oldingi tur",
+        "btn_next_round": "Keyingi tur ▶️",
         "btn_timezone": "🕐 Vaqt zonasi",
         "timezone_prompt": (
             "Vaqt zonangizni tanlang "
@@ -263,6 +275,18 @@ TRANSLATIONS = {
         "no_star_games": (
             "Сегодня нет матчей в топ-лигах 📅"
         ),
+        "btn_results": "🔁 Результаты",
+        "results_league_prompt": (
+            "Результаты какой лиги показать?"
+        ),
+        "round_header": (
+            "<b>{league}</b>\n{round}\n\n{lines}"
+        ),
+        "no_round_data": (
+            "<b>{league}</b>\n\nДанные за этот тур не найдены."
+        ),
+        "btn_prev_round": "◀️ Предыдущий тур",
+        "btn_next_round": "Следующий тур ▶️",
         "btn_timezone": "🕐 Часовой пояс",
         "timezone_prompt": (
             "Выберите часовой пояс "
@@ -394,6 +418,18 @@ TRANSLATIONS = {
         "no_star_games": (
             "No games today in the top leagues 📅"
         ),
+        "btn_results": "🔁 Results",
+        "results_league_prompt": (
+            "Which league's results would you like?"
+        ),
+        "round_header": (
+            "<b>{league}</b>\n{round}\n\n{lines}"
+        ),
+        "no_round_data": (
+            "<b>{league}</b>\n\nNo data found for this round."
+        ),
+        "btn_prev_round": "◀️ Previous round",
+        "btn_next_round": "Next round ▶️",
         "btn_timezone": "🕐 Timezone",
         "timezone_prompt": (
             "Choose your timezone "
