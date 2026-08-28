@@ -32,6 +32,9 @@ from api_client import (
     get_top_assists,
     get_teams_by_league,
     get_upcoming_fixtures_for_team,
+    get_all_rounds,
+    get_current_round,
+    get_fixtures_by_round,
 )
 from supabase_client import (
     get_favorites,
@@ -93,6 +96,7 @@ ACTION_PROMPT_KEYS = {
     "topscorers": "topscorers_league_prompt",
     "topassists": "topassists_league_prompt",
     "highlights": "highlights_league_prompt",
+    "results": "results_league_prompt",
 }
 
 TIMEZONE_OPTIONS = [
@@ -180,6 +184,7 @@ ADD_TEAM_TEXTS = all_variants("btn_add_team")
 REMOVE_TEAM_TEXTS = all_variants("btn_remove_team")
 HIGHLIGHTS_TEXTS = all_variants("btn_highlights")
 STAR_GAMES_TEXTS = all_variants("btn_star_games")
+RESULTS_TEXTS = all_variants("btn_results")
 TIMEZONE_TEXTS = all_variants("btn_timezone")
 
 
@@ -192,6 +197,7 @@ class Nav(StatesGroup):
     choosing_team = State()
     removing_team = State()
     favorites_menu = State()
+    viewing_results = State()
     broadcasting = State()
 
 
@@ -263,11 +269,14 @@ def fixtures_type_kb(lang: str) -> ReplyKeyboardMarkup:
                 KeyboardButton(text=t(lang, "btn_today")),
                 KeyboardButton(text=t(lang, "btn_upcoming")),
             ],
-            [KeyboardButton(text=t(lang, "btn_star_games"))],
+            [
+                KeyboardButton(text=t(lang, "btn_results")),
+                KeyboardButton(text=t(lang, "btn_star_games")),
+            ],
             [KeyboardButton(text=t(lang, "btn_back"))],
         ],
         resize_keyboard=True,
-    )
+                )
 
 
 def league_kb(
@@ -568,6 +577,65 @@ async def menu_star_games(message: Message, state: FSMContext):
     await message.answer(result, reply_markup=main_menu_kb(lang))
 
 
+def round_nav_kb(lang: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text=t(lang, "btn_prev_round")),
+                KeyboardButton(text=t(lang, "btn_next_round")),
+            ],
+            [KeyboardButton(text=t(lang, "btn_back"))],
+        ],
+        resize_keyboard=True,
+    )
+
+
+@dp.message(Nav.choosing_fixtures_type, F.text.in_(RESULTS_TEXTS))
+async def menu_results(message: Message, state: FSMContext):
+    lang = await get_lang(message.from_user.id)
+    await state.set_state(Nav.choosing_category)
+    await state.update_data(action="results", include_all=False, lang=lang)
+    await message.answer(
+        t(lang, "category_prompt"), reply_markup=category_kb(lang)
+    )
+
+
+async def show_round_results(message: Message, lang: str, league: dict, rounds: list, idx: int):
+    round_name = rounds[idx]
+    season = await get_current_season(league["id"])
+    fixtures = await get_fixtures_by_round(league["id"], season, round_name)
+    offset = await get_offset(message.from_user.id, lang)
+    if not fixtures:
+        text = t(lang, "no_round_data", league=league["name"])
+    else:
+        lines = "\n".join(format_fixture(f, lang, offset) for f in fixtures)
+        text = t(lang, "round_header", league=league["name"], round=round_name, lines=lines)
+    text = f"{text}{BOT_FOOTER}"
+    await message.answer(text, reply_markup=round_nav_kb(lang))
+
+
+@dp.message(Nav.viewing_results)
+async def handle_round_navigation(message: Message, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang") or await get_lang(message.from_user.id)
+    rounds = data.get("rounds", [])
+    idx = data.get("round_index", 0)
+    league_key = data.get("league_key")
+    league = LEAGUES.get(league_key)
+    text = message.text
+
+    if text == t(lang, "btn_prev_round"):
+        idx = max(0, idx - 1)
+    elif text == t(lang, "btn_next_round"):
+        idx = min(len(rounds) - 1, idx + 1)
+    else:
+        await message.answer(t(lang, "choose_from_buttons"))
+        return
+
+    await state.update_data(round_index=idx)
+    await show_round_results(message, lang, league, rounds, idx)
+
+
 @dp.message(F.text.in_(STANDINGS_TEXTS))
 async def menu_standings(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
@@ -788,6 +856,28 @@ async def handle_league_choice(message: Message, state: FSMContext):
             t(lang, "main_menu_label"),
             reply_markup=main_menu_kb(lang),
         )
+        return
+
+
+    if action == "results":
+        league = LEAGUES[key]
+        await message.answer(t(lang, "loading"))
+        season = await get_current_season(league["id"])
+        rounds = await get_all_rounds(league["id"], season)
+        if not rounds:
+            await state.clear()
+            await message.answer(
+                t(lang, "no_stats", league=league["name"]),
+                reply_markup=main_menu_kb(lang),
+            )
+            return
+        current_round = await get_current_round(league["id"], season)
+        idx = rounds.index(current_round) if current_round in rounds else len(rounds) - 1
+        await state.update_data(
+            rounds=rounds, round_index=idx, league_key=key, lang=lang
+        )
+        await state.set_state(Nav.viewing_results)
+        await show_round_results(message, lang, league, rounds, idx)
         return
 
     await message.answer(t(lang, "loading"))
