@@ -1040,7 +1040,9 @@ async def cmd_broadcast(message: Message, state: FSMContext):
         return
     await state.set_state(Nav.broadcasting)
     await message.answer(
-        "📢 Barchaga yuboriladigan xabar matnini yozing:"
+        "📢 Barchaga yuboriladigan xabar matnini yozing.\n"
+        "⚠️ Diqqat: matnni yuborguningizcha boshqa hech qanday "
+        "tugmani bosmang, aks holda bekor bo'lishi mumkin."
     )
 
 
@@ -1050,12 +1052,23 @@ async def handle_broadcast(message: Message, state: FSMContext):
         await state.clear()
         return
     await state.clear()
+
+    photo_id = message.photo[-1].file_id if message.photo else None
+    caption = message.caption or message.text
+
+    if not photo_id and not caption:
+        await message.answer("❌ Matn yoki rasm topilmadi, qaytadan urinib ko'ring.")
+        return
+
     users = await get_all_users()
     sent = 0
     failed = 0
     for user_id in users:
         try:
-            await bot.send_message(user_id, message.text)
+            if photo_id:
+                await bot.send_photo(user_id, photo_id, caption=caption)
+            else:
+                await bot.send_message(user_id, caption)
             sent += 1
         except Exception as e:
             failed += 1
