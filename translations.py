@@ -148,6 +148,10 @@ TRANSLATIONS = {
             "(o'yin vaqtlari shu bo'yicha ko'rsatiladi):"
         ),
         "timezone_saved": "✅ Vaqt zonasi saqlandi!",
+        "timezone_current_prefix": (
+            "🕐 Joriy vaqt zonangiz: <b>UTC{offset}</b>\n\n"
+        ),
+        "time_footer": "\n\n🕐 Vaqt: UTC{offset} bo'yicha",
     },
     "ru": {
         "welcome": (
@@ -293,6 +297,10 @@ TRANSLATIONS = {
             "(время матчей будет показано по нему):"
         ),
         "timezone_saved": "✅ Часовой пояс сохранён!",
+        "timezone_current_prefix": (
+            "🕐 Ваш текущий часовой пояс: <b>UTC{offset}</b>\n\n"
+        ),
+        "time_footer": "\n\n🕐 Время: по UTC{offset}",
     },
     "en": {
         "welcome": (
@@ -436,6 +444,10 @@ TRANSLATIONS = {
             "(match times will be shown accordingly):"
         ),
         "timezone_saved": "✅ Timezone saved!",
+        "timezone_current_prefix": (
+            "🕐 Your current timezone: <b>UTC{offset}</b>\n\n"
+        ),
+        "time_footer": "\n\n🕐 Times shown in UTC{offset}",
     },
 }
 
