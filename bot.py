@@ -465,10 +465,15 @@ async def menu_change_language(message: Message, state: FSMContext):
 @dp.message(F.text.in_(TIMEZONE_TEXTS))
 async def menu_timezone(message: Message, state: FSMContext):
     lang = await get_lang(message.from_user.id)
+    current_offset = await get_offset(message.from_user.id, lang)
     await state.set_state(Nav.choosing_timezone)
     await state.update_data(lang=lang)
+    current_label = t(
+        lang, "timezone_current_prefix", offset=f"{current_offset:+d}"
+    )
     await message.answer(
-        t(lang, "timezone_prompt"), reply_markup=timezone_kb(lang)
+        current_label + t(lang, "timezone_prompt"),
+        reply_markup=timezone_kb(lang),
     )
 
 
@@ -572,7 +577,8 @@ async def menu_star_games(message: Message, state: FSMContext):
         body = "\n\n".join(sections)
         result = t(lang, "star_games_header", body=body)
 
-    result = f"{result}{BOT_FOOTER}"
+    tz_footer = t(lang, "time_footer", offset=f"{offset:+d}")
+    result = f"{result}{tz_footer}{BOT_FOOTER}"
     await state.clear()
     await message.answer(result, reply_markup=main_menu_kb(lang))
 
@@ -610,7 +616,8 @@ async def show_round_results(message: Message, lang: str, league: dict, rounds: 
     else:
         lines = "\n".join(format_fixture(f, lang, offset) for f in fixtures)
         text = t(lang, "round_header", league=league["name"], round=round_name, lines=lines)
-    text = f"{text}{BOT_FOOTER}"
+    tz_footer = t(lang, "time_footer", offset=f"{offset:+d}")
+    text = f"{text}{tz_footer}{BOT_FOOTER}"
     await message.answer(text, reply_markup=round_nav_kb(lang))
 
 
@@ -957,7 +964,11 @@ async def handle_league_choice(message: Message, state: FSMContext):
     else:
         result = "Error."
 
-    result = f"{result}{BOT_FOOTER}"
+    if action in ("live", "today", "upcoming"):
+        tz_footer = t(lang, "time_footer", offset=f"{offset:+d}")
+        result = f"{result}{tz_footer}{BOT_FOOTER}"
+    else:
+        result = f"{result}{BOT_FOOTER}"
 
     await state.clear()
     await message.answer(result, reply_markup=main_menu_kb(lang))
