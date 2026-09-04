@@ -974,6 +974,56 @@ async def handle_league_choice(message: Message, state: FSMContext):
     await message.answer(result, reply_markup=main_menu_kb(lang))
 
 
+@dp.message(Command("checknotify"))
+async def cmd_checknotify(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    favorites = await get_all_favorites()
+    if not favorites:
+        await message.answer("Sevimli jamoalar ro'yxati bo'sh.")
+        return
+
+    teams_map = {}
+    for fav in favorites:
+        teams_map.setdefault(fav["team_id"], []).append(fav)
+
+    lines = []
+    for team_id, rows in teams_map.items():
+        team_name = rows[0]["team_name"]
+        fixtures = await get_upcoming_fixtures_for_team(team_id, count=1)
+        if not fixtures:
+            lines.append(f"⚠️ {team_name}: keyingi o'yin topilmadi")
+            continue
+
+        fixture = fixtures[0]
+        fixture_id = str(fixture["fixture"]["id"])
+        fixture_time = datetime.fromisoformat(fixture["fixture"]["date"])
+        now = datetime.now(fixture_time.tzinfo)
+        hours_left = (fixture_time - now).total_seconds() / 3600
+        home = fixture["teams"]["home"]["name"]
+        away = fixture["teams"]["away"]["name"]
+        would_notify = 0 < hours_left <= NOTIFY_WINDOW_HOURS
+
+        status_parts = []
+        for row in rows:
+            notified = row.get("notified_fixtures") or ""
+            notified_list = notified.split(",") if notified else []
+            already = fixture_id in notified_list
+            status_parts.append(
+                f"user={row['user_id']} allaqachon_yuborilgan={already}"
+            )
+
+        lines.append(
+            f"⭐ {team_name}: {home} — {away}\n"
+            f"fixture_id={fixture_id}\n"
+            f"qolgan_soat={hours_left:.1f}\n"
+            f"yuborilarmidi={would_notify}\n"
+            + " | ".join(status_parts)
+        )
+
+    await message.answer("\n\n".join(lines))
+
+
 async def check_favorite_notifications():
     while True:
         try:
