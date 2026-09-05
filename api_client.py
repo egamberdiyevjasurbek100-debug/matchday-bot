@@ -144,11 +144,18 @@ async def get_teams_by_league(league_id: int, season: int):
 
 
 async def get_upcoming_fixtures_for_team(team_id: int, count: int = 1):
-    params = {
-        "team": team_id,
-        "next": count,
-        "timezone": "UTC",
-    }
+    current_year = datetime.now().year
+    for season in [current_year, current_year - 1]:
+        params = {
+            "team": team_id,
+            "season": season,
+            "next": count,
+            "timezone": "UTC",
+        }
+        data = await _get("fixtures", params)
+        if data:
+            return data
+    return []
 
 
 async def get_all_rounds(league_id: int, season: int):
