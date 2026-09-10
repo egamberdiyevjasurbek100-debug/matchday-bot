@@ -167,3 +167,13 @@ async def get_all_users():
                     if isinstance(item, dict)
                 ]
     return []
+
+
+async def get_all_users_full():
+    params = {"select": "user_id,language"}
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(USERS_URL, params=params) as resp:
+            data = await resp.json()
+            if isinstance(data, list):
+                return [item for item in data if isinstance(item, dict)]
+    return []
