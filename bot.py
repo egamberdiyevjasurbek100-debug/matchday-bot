@@ -47,6 +47,7 @@ from supabase_client import (
     get_user_timezone,
     set_user_timezone,
     get_all_users,
+    get_all_users_full,
 )
 from translations import t, all_variants
 
@@ -1023,6 +1024,41 @@ async def cmd_checknotify(message: Message):
 
     await message.answer("\n\n".join(lines))
 
+
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    users = await get_all_users_full()
+    total_users = len(users)
+
+    lang_counts = {}
+    for u in users:
+        lang = u.get("language") or "noma'lum"
+        lang_counts[lang] = lang_counts.get(lang, 0) + 1
+
+    favorites = await get_all_favorites()
+    unique_fav_users = len({f["user_id"] for f in favorites})
+    total_fav_teams = len(favorites)
+
+    lines = [
+        "📊 <b>Bot statistikasi</b>\n",
+        f"👥 Jami foydalanuvchi: <b>{total_users}</b>\n",
+        "🌐 Til bo'yicha:",
+    ]
+    for lang, count in sorted(lang_counts.items(), key=lambda x: -x[1]):
+        lines.append(f"  • {lang}: {count}")
+
+    lines.append(
+        f"\n⭐ Sevimli jamoa tanlagan: <b>{unique_fav_users}</b>"
+    )
+    lines.append(
+        f"⭐ Jami qo'shilgan jamoalar: <b>{total_fav_teams}</b>"
+    )
+
+    await message.answer("\n".join(lines))
+    
 
 async def check_favorite_notifications():
     while True:
