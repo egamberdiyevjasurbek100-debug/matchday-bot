@@ -148,6 +148,10 @@ TRANSLATIONS = {
             "(o'yin vaqtlari shu bo'yicha ko'rsatiladi):"
         ),
         "timezone_saved": "✅ Vaqt zonasi saqlandi!",
+        "maintenance_message": (
+            "🔧 Hozirda botda texnik ishlar olib borilmoqda. "
+            "Iltimos, birozdan so'ng qayta urinib ko'ring."
+        ), 
         "timezone_current_prefix": (
             "🕐 Joriy vaqt zonangiz: <b>UTC{offset}</b>\n\n"
         ),
@@ -297,6 +301,10 @@ TRANSLATIONS = {
             "(время матчей будет показано по нему):"
         ),
         "timezone_saved": "✅ Часовой пояс сохранён!",
+        "maintenance_message": (
+            "🔧 В данный момент проводятся технические работы. "
+            "Пожалуйста, повторите попытку позже."
+        ),
         "timezone_current_prefix": (
             "🕐 Ваш текущий часовой пояс: <b>UTC{offset}</b>\n\n"
         ),
@@ -444,6 +452,10 @@ TRANSLATIONS = {
             "(match times will be shown accordingly):"
         ),
         "timezone_saved": "✅ Timezone saved!",
+        "maintenance_message": (
+            "🔧 The bot is currently undergoing maintenance. "
+            "Please try again shortly."
+        ),
         "timezone_current_prefix": (
             "🕐 Your current timezone: <b>UTC{offset}</b>\n\n"
         ),
