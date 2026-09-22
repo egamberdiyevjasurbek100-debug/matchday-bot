@@ -5,7 +5,7 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone as dt_timezone
 
 from aiohttp import web
-from aiogram import Bot, Dispatcher, F
+from aiogram import Bot, Dispatcher, F, BaseMiddleware
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command
@@ -48,6 +48,9 @@ from supabase_client import (
     set_user_timezone,
     get_all_users,
     get_all_users_full,
+    get_setting,
+    set_setting,
+    get_all_users_full,
 )
 from translations import t, all_variants
 
@@ -58,7 +61,7 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 dp = Dispatcher(storage=MemoryStorage())
-
+dp.message.outer_middleware(MaintenanceMiddleware())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
@@ -200,6 +203,17 @@ class Nav(StatesGroup):
     favorites_menu = State()
     viewing_results = State()
     broadcasting = State()
+
+
+class MaintenanceMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        if event.from_user and event.from_user.id != ADMIN_ID:
+            mode = await get_setting("maintenance_mode")
+            if mode == "1":
+                lang = await get_lang(event.from_user.id) or "uz"
+                await event.answer(t(lang, "maintenance_message"))
+                return
+        return await handler(event, data)
 
 
 def language_kb() -> ReplyKeyboardMarkup:
@@ -1058,6 +1072,25 @@ async def cmd_stats(message: Message):
     )
 
     await message.answer("\n".join(lines))
+
+
+@dp.message(Command("maintenance"))
+async def cmd_maintenance(message: Message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    current = await get_setting("maintenance_mode")
+    new_state = "0" if current == "1" else "1"
+    await set_setting("maintenance_mode", new_state)
+    if new_state == "1":
+        await message.answer(
+            "🔧 Texnik ishlar rejimi YOQILDI.\n"
+            "Endi barcha foydalanuvchilarga texnik xabar ko'rsatiladi."
+        )
+    else:
+        await message.answer(
+            "✅ Texnik ishlar rejimi O'CHIRILDI.\n"
+            "Bot odatdagidek ishlayapti."
+        )
     
 
 async def check_favorite_notifications():
