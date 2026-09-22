@@ -177,3 +177,30 @@ async def get_all_users_full():
             if isinstance(data, list):
                 return [item for item in data if isinstance(item, dict)]
     return []
+
+
+SETTINGS_URL = f"{_clean_url}/rest/v1/settings"
+
+
+async def get_setting(key: str):
+    params = {"key": f"eq.{key}", "select": "value"}
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(SETTINGS_URL, params=params) as resp:
+            data = await resp.json()
+            if isinstance(data, list) and data:
+                return data[0].get("value")
+    return None
+
+
+async def set_setting(key: str, value: str):
+    params = {"key": f"eq.{key}"}
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        async with session.get(SETTINGS_URL, params=params) as resp:
+            existing = await resp.json()
+        if isinstance(existing, list) and existing:
+            body = {"value": value}
+            async with session.patch(SETTINGS_URL, params=params, json=body) as resp2:
+                return resp2.status
+        body = {"key": key, "value": value}
+        async with session.post(SETTINGS_URL, json=body) as resp3:
+            return resp3.status
