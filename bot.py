@@ -62,7 +62,6 @@ bot = Bot(
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 dp = Dispatcher(storage=MemoryStorage())
-dp.message.outer_middleware(MaintenanceMiddleware())
 LEAGUE_NAME_TO_KEY = {
     league["name"]: key for key, league in LEAGUES.items()
 }
@@ -215,6 +214,9 @@ class MaintenanceMiddleware(BaseMiddleware):
                 await event.answer(t(lang, "maintenance_message"))
                 return
         return await handler(event, data)
+
+
+dp.message.outer_middleware(MaintenanceMiddleware())
 
 
 def language_kb() -> ReplyKeyboardMarkup:
